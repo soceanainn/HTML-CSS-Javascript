@@ -1,0 +1,266 @@
+<!-- Adapted from url=(0081)http://www.csc.villanova.edu/~tway/courses/csc4181/s2017/assignments/checker.html -->
+
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>Checker</title>
+<script type="text/javascript">
+
+function check()
+{
+	// Clear the results area first
+	clear_results();
+	// Get the input text
+	var text = document.getElementById("text").value.replace(/^\s*/, "").replace(/\s*$/, "");
+	// Format input text
+	text = formatText(text);
+	
+	
+	// Split the text into lines
+	var lines = text.split(/\n/);
+	// Declare a 2D array tokens, which gives a line and a token number
+	var tokens = [[],[]];
+	// Split each line into tokens
+	for (i = 0; i < lines.length; i++)
+	{	// filter(Boolean) discards any empty token
+		tokens[i] = lines[i].split(/\s/).filter(Boolean);
+	}
+	//Convert 2D array to a linked list
+	var list = new List();
+	for (i = 0; i < lines.length; i++)
+	{
+		for (j = 0; j < tokens[i].length; j++)
+		{
+			list.add(tokens[i][j],i,j);
+		}
+	}
+	
+	// Check for an expression
+	node = isExp(list.head);
+	// If we aren't at end of input, reject
+	if (node != null) reject(node, "Error, expected end of input");
+	// Print accept message
+	accept();
+}
+
+//###########################################
+//#		Multi-Token Check Functions			#
+//###########################################
+
+// Check if it is an expression
+// Returns next if it is an expression or null otherwise
+function isExp(node)
+{
+	node = isTerm(node);
+	if (node == null) return null;
+	if (isAddOp(node.token))
+	{
+		node = node.next;
+		if (node == null)
+		{
+			rejectEndofInput("a number after add operation");
+			return node;
+		}
+		node = isExp(node);
+		return node;
+	}
+	return node;
+}
+
+// Check if it is a term
+// Returns next if it is a term or null otherwise
+function isTerm(node)
+{
+	node = isFactor(node);
+	if (node == null) return null;
+	if (isMulOp(node.token))
+	{
+		node = node.next;
+		if (node == null) rejectEndofInput("a number after multiply operation");
+		node = isTerm(node);
+		return node;
+	}
+	return node;
+}	
+
+// Check if it is a factor
+// Returns next if it is a factor or null otherwise
+function isFactor(node)
+{
+	if (isOpenPar(node.token)) 
+	{
+		node = isExp(node.next);
+		if (node==null) 
+		{
+			rejectEndofInput("closing paranthesis");
+			return node;
+		}
+		if (isClosePar(node.token)) return node.next;
+		else reject (node, "Expected closing paranthesis");
+		return null;
+	}
+	else node = isNumber(node);
+	return node;
+	
+}
+
+// Check if it is a number
+// Returns next if it is a number or null otherwise
+function isNumber(node)
+{
+	if (node.token=='-') node = node.next;
+	if (isInteger(node.token)) return node.next;
+	else
+	{
+		reject(node, "Expected a number");
+		return null;
+	}
+}
+
+//###########################################
+//#		Boolean Check Functions				#
+//###########################################
+
+// Check if opening paranthesis
+function isOpenPar(token)
+{
+	return "("==token.substring(0,1);
+}
+
+// Check if closing paranthesis
+function isClosePar(token)
+{
+	return ")"==token.substring(0,1);
+}
+
+// Check if add operation
+function isAddOp(token)
+{
+	return "+"==token.substring(0,1)||"-"==token.substring(0,1);
+}
+
+// Check if multiply operation
+function isMulOp(token)
+{
+	return "*"==token.substring(0,1)||"/"==token.substring(0,1);
+}
+
+// Check if it is an integer
+function isInteger(token)
+{
+    return !isNaN(token);
+}
+
+//###########################################
+//#		Text Area Functions 				#
+//###########################################
+
+function append_result(token)
+{
+	document.getElementById("results").value += token;
+}
+
+function clear_results()
+{
+	document.resultform.reset();
+}
+
+function change_input(input)
+{
+	document.getElementById("text").value = input;
+}
+
+function accept()
+{
+	if (document.getElementById("results").value == "")
+		append_result("ACCEPT");	
+}
+
+function reject(node, error)
+{
+	append_result( " Error: " + error + "(Line " + (node.line+1) + " Token " + (node.tokenNum+1) + ": '" + node.token + "' )\n");
+}
+
+function rejectEndofInput(error)
+{
+	append_result( " Error: Expected " + error + " at the end of input");
+}
+
+function formatText(text)
+{
+	// Pad the operators with spaces
+	text = text.replace(/[+,\-,(,),*,/]/g, function addSpaces(c){return (" " + c + " ")});
+	
+	// Remove multiple spaces / tabs
+	text = text.replace(/[  |\t| \t]+/g, " ");
+
+	// Remove spaces directly before or after newlines
+	text = text.replace(/ \n|\n /g, "\n");
+
+	// Deal with multiple newlines
+	text = text.replace(/\n\n+/g, "\n");
+	
+	//Update Checker Box with correctly formatted text
+	change_input(text);
+	
+	return text;
+}	
+
+
+//###########################################
+//#		Linked List Functions				#
+//###########################################
+// Adapted from code online https://code.tutsplus.com/articles/data-structures-with-javascript-singly-linked-list-and-doubly-linked-list--cms-23392
+
+function Node(token, i, j)
+{
+	this.token = token;
+	this.line = i;
+	this.tokenNum = j;
+	this.next = null;
+}
+	
+function List()
+{
+	this._length = 0;
+	this.head = null;
+}
+	
+List.prototype.add = function (token, i, j)
+{
+	var node = new Node(token, i , j),
+		currentNode = this.head;
+	
+	// Empty list
+	if (!currentNode)
+	{
+		this.head = node;
+		this._length++;
+		return node;
+	}
+	
+	while (currentNode.next)
+	{
+		currentNode = currentNode.next;
+	}
+	
+	currentNode.next = node;
+	this._length++;
+	return node;
+}
+
+</script>
+</head>
+<body bgcolor="#FFFFCC">
+<h1>Checker</h1>
+<p>Copy and paste, or type, some text to be checked below and click "Check". </p>
+<form name="checker" action="javascript:check()">
+	<p><textarea rows="9" id="text" name="text" cols="99"></textarea><br>
+	<input type="submit" value="Check" name="">
+	<input type="reset" value="Reset" name="" onclick="javascript:clear_results()"></p>
+</form>
+<h2>Result</h2>
+<form name="resultform">
+	<p><textarea rows="10" id="results" name="results" cols="99" readonly="readonly"></textarea></p>
+</form>
+<p>&nbsp;</p>
+
+</body></html>
